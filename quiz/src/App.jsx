@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import LoginPage from './components/LoginPage';
+import StudentDashboard from './components/StudentDashboard';
 
 function App() {
   const [view, setView] = useState('login');
@@ -11,9 +12,21 @@ function App() {
     setView(role === 'instructor' ? 'instructor-dashboard' : 'student-dashboard');
   };
 
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setView('login');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {view === 'login' && <LoginPage onLogin={handleLogin} />}
+      {view === 'student-dashboard' && (
+        <StudentDashboard 
+          user={currentUser} 
+          onLogout={handleLogout}
+          onStartQuiz={() => setView('quiz')}
+        />
+      )}
     </div>
   );
 }
