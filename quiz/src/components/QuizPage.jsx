@@ -37,7 +37,7 @@ function QuizPage({ user, onComplete }) {
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return ${mins}:${secs.toString().padStart(2, '0')};
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleAnswer = (questionId, answerIndex) => {
@@ -73,7 +73,7 @@ function QuizPage({ user, onComplete }) {
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-indigo-600 h-2 rounded-full transition-all"
-                style={{ width: ${((currentQuestion + 1) / QUIZ_DATA.questions.length) * 100}% }}
+                style={{ width: `${((currentQuestion + 1) / QUIZ_DATA.questions.length) * 100}%` }}
               />
             </div>
           </div>
