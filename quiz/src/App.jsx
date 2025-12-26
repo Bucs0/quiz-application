@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import LoginPage from './components/LoginPage';
 import StudentDashboard from './components/StudentDashboard';
+import QuizPage from './components/QuizPage';
 
 function App() {
   const [view, setView] = useState('login');
@@ -25,6 +26,12 @@ function App() {
           user={currentUser} 
           onLogout={handleLogout}
           onStartQuiz={() => setView('quiz')}
+        />
+      )}
+      {view === 'quiz' && (
+        <QuizPage 
+          user={currentUser}
+          onComplete={() => setView('student-dashboard')}
         />
       )}
     </div>
