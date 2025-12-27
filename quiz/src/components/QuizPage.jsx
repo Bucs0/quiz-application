@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, AlertCircle } from 'lucide-react';
-import { QUIZ_DATA } from '../constants';
+import { QUIZ_DATA, STORAGE_KEYS } from '../constants';
 
 function QuizPage({ user, onComplete }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -49,6 +49,27 @@ function QuizPage({ user, onComplete }) {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+
+    let score = 0;
+    QUIZ_DATA.questions.forEach((q) => {
+      if (answers[q.id] === q.correctAnswer) {
+        score++;
+      }
+    });
+
+    const result = {
+      studentName: user.name,
+      score,
+      totalQuestions: QUIZ_DATA.questions.length,
+      violations,
+      timestamp: new Date().toISOString(),
+      autoSubmitted: autoSubmit
+    };
+
+    const results = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUIZ_RESULTS) || '[]');
+    results.push(result);
+    localStorage.setItem(STORAGE_KEYS.QUIZ_RESULTS, JSON.stringify(results));
+
     onComplete();
   };
 
