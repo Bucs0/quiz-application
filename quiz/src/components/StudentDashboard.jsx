@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, AlertCircle, CheckCircle } from 'lucide-react';
+import { LogOut, AlertCircle } from 'lucide-react';
 import { QUIZ_DATA, STORAGE_KEYS } from '../constants';
 
 function StudentDashboard({ user, onLogout, onStartQuiz }) {
   const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false);
+
+  useEffect(() => {
+    const results = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUIZ_RESULTS) || '[]');
+    const userResult = results.find(r => r.studentName === user.name);
+    
+    if (userResult) {
+      setHasCompletedQuiz(true);
+    }
+  }, [user.name]);
 
   return (
     <div className="min-h-screen p-4">
@@ -16,7 +25,7 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
             </div>
             <button
               onClick={onLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-200 rounded-lg"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
             >
               <LogOut size={18} />
               Logout
@@ -32,7 +41,9 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
           {!hasCompletedQuiz ? (
             <div>
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-                <p className="text-blue-800"><strong>Instructions:</strong></p>
+                <p className="text-blue-800">
+                  <strong>Instructions:</strong>
+                </p>
                 <ul className="list-disc list-inside mt-2 text-blue-700 space-y-1">
                   <li>You have {QUIZ_DATA.duration / 60} minutes to complete the quiz</li>
                   <li>Do not switch tabs or minimize the window</li>
@@ -43,16 +54,21 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
               
               <button
                 onClick={onStartQuiz}
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium"
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition"
               >
                 Start Quiz
               </button>
             </div>
           ) : (
             <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
-              <p className="text-yellow-800 font-semibold">Quiz Submitted</p>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="text-yellow-600" />
+                <p className="text-yellow-800 font-semibold">
+                  Quiz Submitted
+                </p>
+              </div>
               <p className="text-yellow-700 mt-2">
-                Please wait for the instructor to release the results.
+                Your answers have been submitted. Please wait for the instructor to release the results.
               </p>
             </div>
           )}

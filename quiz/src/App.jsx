@@ -2,18 +2,43 @@ import React, { useState } from 'react';
 import LoginPage from './components/LoginPage';
 import StudentDashboard from './components/StudentDashboard';
 import QuizPage from './components/QuizPage';
+import { STORAGE_KEYS } from './constants';
 
 function App() {
-  const [view, setView] = useState('login');
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (error) {
+        return null;
+      }
+    }
+    return null;
+  });
+  
+  const [view, setView] = useState(() => {
+    const savedUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        return user.role === 'instructor' ? 'instructor-dashboard' : 'student-dashboard';
+      } catch (error) {
+        return 'login';
+      }
+    }
+    return 'login';
+  });
 
   const handleLogin = (name, role) => {
     const user = { name, role };
     setCurrentUser(user);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
     setView(role === 'instructor' ? 'instructor-dashboard' : 'student-dashboard');
   };
 
   const handleLogout = () => {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     setCurrentUser(null);
     setView('login');
   };
