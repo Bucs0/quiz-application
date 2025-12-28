@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, AlertCircle } from 'lucide-react';
+import { LogOut, AlertCircle, CheckCircle } from 'lucide-react';
 import { QUIZ_DATA, STORAGE_KEYS } from '../constants';
 
 function StudentDashboard({ user, onLogout, onStartQuiz }) {
   const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false);
+  const [result, setResult] = useState(null);
+  const [scoresReleased, setScoresReleased] = useState(false);
 
   useEffect(() => {
     const results = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUIZ_RESULTS) || '[]');
@@ -11,7 +13,11 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
     
     if (userResult) {
       setHasCompletedQuiz(true);
+      setResult(userResult);
     }
+
+    const released = localStorage.getItem(STORAGE_KEYS.RELEASED_SCORES) === 'true';
+    setScoresReleased(released);
   }, [user.name]);
 
   return (
@@ -60,16 +66,52 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
               </button>
             </div>
           ) : (
-            <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="text-yellow-600" />
-                <p className="text-yellow-800 font-semibold">
-                  Quiz Submitted
-                </p>
-              </div>
-              <p className="text-yellow-700 mt-2">
-                Your answers have been submitted. Please wait for the instructor to release the results.
-              </p>
+            <div>
+              {scoresReleased && result ? (
+                <div className="space-y-6">
+                  <div className="bg-green-50 border-l-4 border-green-500 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="text-green-600" />
+                      <p className="text-green-800 font-semibold">Quiz Completed</p>
+                    </div>
+                    <p className="text-green-700">Your results have been released!</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-indigo-50 p-4 rounded-lg">
+                      <p className="text-sm text-indigo-600 font-medium">Score</p>
+                      <p className="text-3xl font-bold text-indigo-700">
+                        {result.score} / {QUIZ_DATA.questions.length}
+                      </p>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-lg">
+                      <p className="text-sm text-orange-600 font-medium">Violations</p>
+                      <p className="text-3xl font-bold text-orange-700">
+                        {result.violations}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600">Submitted on</p>
+                    <p className="text-gray-800 font-medium">
+                      {new Date(result.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="text-yellow-600" />
+                    <p className="text-yellow-800 font-semibold">
+                      Quiz Submitted
+                    </p>
+                  </div>
+                  <p className="text-yellow-700 mt-2">
+                    Your answers have been submitted. Please wait for the instructor to release the results.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

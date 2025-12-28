@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, Users } from 'lucide-react';
+import { LogOut, Users, CheckCircle } from 'lucide-react';
 import { STORAGE_KEYS } from '../constants';
 
 function InstructorDashboard({ user, onLogout }) {
@@ -10,6 +10,22 @@ function InstructorDashboard({ user, onLogout }) {
   const [scoresReleased, setScoresReleased] = useState(() => {
     return localStorage.getItem(STORAGE_KEYS.RELEASED_SCORES) === 'true';
   });
+
+  const handleReleaseScores = () => {
+    localStorage.setItem(STORAGE_KEYS.RELEASED_SCORES, 'true');
+    setScoresReleased(true);
+    alert('Scores have been released to all students!');
+  };
+
+  const handleResetQuiz = () => {
+    if (window.confirm('Are you sure you want to reset all quiz data? This cannot be undone.')) {
+      localStorage.removeItem(STORAGE_KEYS.QUIZ_RESULTS);
+      localStorage.removeItem(STORAGE_KEYS.RELEASED_SCORES);
+      setResults([]);
+      setScoresReleased(false);
+      alert('Quiz data has been reset!');
+    }
+  };
 
   return (
     <div className="min-h-screen p-4">
@@ -31,11 +47,35 @@ function InstructorDashboard({ user, onLogout }) {
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex items-center gap-4">
-            <Users size={24} className="text-indigo-600" />
-            <div>
-              <h3 className="text-xl font-bold text-gray-800">Student Results</h3>
-              <p className="text-gray-600">{results.length} submission(s)</p>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <Users size={24} className="text-indigo-600" />
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Student Results</h3>
+                <p className="text-gray-600">{results.length} submission(s)</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              {!scoresReleased && results.length > 0 && (
+                <button
+                  onClick={handleReleaseScores}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition"
+                >
+                  Release Results
+                </button>
+              )}
+              {scoresReleased && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-500 rounded-lg">
+                  <CheckCircle size={20} className="text-green-600" />
+                  <span className="text-green-700 font-medium">Scores Released</span>
+                </div>
+              )}
+              <button
+                onClick={handleResetQuiz}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition"
+              >
+                Reset Quiz
+              </button>
             </div>
           </div>
         </div>
