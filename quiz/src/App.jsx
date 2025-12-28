@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import LoginPage from './components/LoginPage';
 import StudentDashboard from './components/StudentDashboard';
 import QuizPage from './components/QuizPage';
+import InstructorDashboard from './components/InstructorDashboard';
 import { STORAGE_KEYS } from './constants';
 
 function App() {
@@ -57,6 +58,12 @@ function App() {
         <QuizPage 
           user={currentUser}
           onComplete={() => setView('student-dashboard')}
+        />
+      )}
+      {view === 'instructor-dashboard' && (
+        <InstructorDashboard 
+          user={currentUser}
+          onLogout={handleLogout}
         />
       )}
     </div>
