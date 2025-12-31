@@ -2,11 +2,20 @@ import React, { useState } from 'react';
 
 function LoginPage({ onLogin }) {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState('student');
 
   const handleSubmit = () => {
-    if (name.trim()) {
-      onLogin(name.trim(), role);
+    if (name.trim() && email.trim() && email.includes('@')) {
+      onLogin(name.trim(), email.trim(), role);
+    } else {
+      alert('Please enter a valid name and email address');
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSubmit();
     }
   };
 
@@ -27,8 +36,23 @@ function LoginPage({ onLogin }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              onKeyPress={handleKeyPress}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Enter your name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Enter your email"
             />
           </div>
 
@@ -37,7 +61,7 @@ function LoginPage({ onLogin }) {
               Login As
             </label>
             <div className="flex gap-4">
-              <label className="flex items-center flex-1 p-4 border-2 border-gray-300 rounded-lg cursor-pointer">
+              <label className="flex items-center flex-1 p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-indigo-500 transition">
                 <input
                   type="radio"
                   value="student"
@@ -45,9 +69,9 @@ function LoginPage({ onLogin }) {
                   onChange={(e) => setRole(e.target.value)}
                   className="mr-3"
                 />
-                <span>Student</span>
+                <span className="font-medium">Student</span>
               </label>
-              <label className="flex items-center flex-1 p-4 border-2 border-gray-300 rounded-lg cursor-pointer">
+              <label className="flex items-center flex-1 p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-indigo-500 transition">
                 <input
                   type="radio"
                   value="instructor"
@@ -55,14 +79,14 @@ function LoginPage({ onLogin }) {
                   onChange={(e) => setRole(e.target.value)}
                   className="mr-3"
                 />
-                <span>Instructor</span>
+                <span className="font-medium">Instructor</span>
               </label>
             </div>
           </div>
 
           <button
             onClick={handleSubmit}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium"
+            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition"
           >
             Login
           </button>

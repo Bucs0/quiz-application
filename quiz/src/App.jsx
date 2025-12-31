@@ -12,6 +12,7 @@ function App() {
       try {
         return JSON.parse(savedUser);
       } catch (error) {
+        console.error('Error loading user:', error);
         return null;
       }
     }
@@ -31,8 +32,8 @@ function App() {
     return 'login';
   });
 
-  const handleLogin = (name, role) => {
-    const user = { name, role };
+  const handleLogin = (name, email, role) => {
+    const user = { name, email, role };
     setCurrentUser(user);
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
     setView(role === 'instructor' ? 'instructor-dashboard' : 'student-dashboard');

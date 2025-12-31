@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, AlertCircle, CheckCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, LogOut, Mail } from 'lucide-react';
 import { QUIZ_DATA, STORAGE_KEYS } from '../constants';
 
 function StudentDashboard({ user, onLogout, onStartQuiz }) {
@@ -9,7 +9,7 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
 
   useEffect(() => {
     const results = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUIZ_RESULTS) || '[]');
-    const userResult = results.find(r => r.studentName === user.name);
+    const userResult = results.find(r => r.studentEmail === user.email);
     
     if (userResult) {
       setHasCompletedQuiz(true);
@@ -18,7 +18,7 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
 
     const released = localStorage.getItem(STORAGE_KEYS.RELEASED_SCORES) === 'true';
     setScoresReleased(released);
-  }, [user.name]);
+  }, [user.email]);
 
   return (
     <div className="min-h-screen p-4">
@@ -27,7 +27,10 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold text-gray-800">Welcome, {user.name}!</h2>
-              <p className="text-gray-600">Student Dashboard</p>
+              <p className="text-gray-600 flex items-center gap-2">
+                <Mail size={16} />
+                {user.email}
+              </p>
             </div>
             <button
               onClick={onLogout}
@@ -55,6 +58,7 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
                   <li>Do not switch tabs or minimize the window</li>
                   <li>After 3 violations, the quiz will auto-submit</li>
                   <li>You can only take this quiz once</li>
+                  <li>Results will be displayed here and also sent to your email when released</li>
                 </ul>
               </div>
               
@@ -74,7 +78,7 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
                       <CheckCircle className="text-green-600" />
                       <p className="text-green-800 font-semibold">Quiz Completed</p>
                     </div>
-                    <p className="text-green-700">Your results have been released!</p>
+                    <p className="text-green-700">Your results have been released and sent to your email!</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -82,6 +86,9 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
                       <p className="text-sm text-indigo-600 font-medium">Score</p>
                       <p className="text-3xl font-bold text-indigo-700">
                         {result.score} / {QUIZ_DATA.questions.length}
+                      </p>
+                      <p className="text-sm text-indigo-600 mt-1">
+                        {Math.round((result.score / QUIZ_DATA.questions.length) * 100)}%
                       </p>
                     </div>
                     <div className="bg-orange-50 p-4 rounded-lg">
@@ -108,7 +115,7 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
                     </p>
                   </div>
                   <p className="text-yellow-700 mt-2">
-                    Your answers have been submitted. Please wait for the instructor to release the results.
+                    Your answers have been submitted. Results will be displayed here after and will also be sent to your email ({user.email}) when the instructor releases them.
                   </p>
                 </div>
               )}

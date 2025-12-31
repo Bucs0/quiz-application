@@ -1,3 +1,11 @@
+// EmailJS Configuration
+export const EMAILJS_CONFIG = {
+  serviceId: 'service_s1w8grg',
+  templateId: 'template_ixir445',
+  publicKey: '5cdqswWLMp1UTmPU8'
+};
+
+// Quiz Data
 export const QUIZ_DATA = {
   id: 'quiz_1',
   title: 'DCIT 26 - Web Development Final Quiz',
@@ -61,6 +69,7 @@ export const QUIZ_DATA = {
   ]
 };
 
+// Storage Keys
 export const STORAGE_KEYS = {
   QUIZ_RESULTS: 'quiz_results',
   CURRENT_USER: 'current_user',

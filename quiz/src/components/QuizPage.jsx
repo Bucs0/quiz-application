@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Clock, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { AlertCircle, Clock } from 'lucide-react';
 import { QUIZ_DATA, STORAGE_KEYS } from '../constants';
 
 function QuizPage({ user, onComplete }) {
@@ -8,44 +8,14 @@ function QuizPage({ user, onComplete }) {
   const [timeLeft, setTimeLeft] = useState(QUIZ_DATA.duration);
   const [violations, setViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const timerRef = useRef(null);
 
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          handleSubmit(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  const handleSubmit = useCallback((autoSubmit = false) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setViolations(prev => prev + 1);
-        setShowWarning(true);
-        setTimeout(() => setShowWarning(false), 3000);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (violations >= 3) {
-      handleSubmit(true);
-    }
-  }, [violations]);
-
-  const handleSubmit = (autoSubmit = false) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
@@ -59,6 +29,7 @@ function QuizPage({ user, onComplete }) {
 
     const result = {
       studentName: user.name,
+      studentEmail: user.email,
       score,
       totalQuestions: QUIZ_DATA.questions.length,
       violations,
@@ -71,19 +42,54 @@ function QuizPage({ user, onComplete }) {
     localStorage.setItem(STORAGE_KEYS.QUIZ_RESULTS, JSON.stringify(results));
 
     onComplete();
+  }, [isSubmitting, answers, violations, user.name, user.email, onComplete]);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          handleSubmit(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setViolations((prev) => prev + 1);
+        setShowWarning(true);
+        setTimeout(() => setShowWarning(false), 3000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [handleSubmit]);
+
+  useEffect(() => {
+    if (violations >= 3 && !isSubmitting) {
+      handleSubmit(true);
+    }
+  }, [violations, isSubmitting, handleSubmit]);
+
+  const handleAnswer = (questionId, answerIndex) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: answerIndex
+    }));
   };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleAnswer = (questionId, answerIndex) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: answerIndex
-    }));
   };
 
   const currentQ = QUIZ_DATA.questions[currentQuestion];
@@ -119,9 +125,28 @@ function QuizPage({ user, onComplete }) {
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">
-              Question {currentQuestion + 1} of {QUIZ_DATA.questions.length}
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-700">
+                Question {currentQuestion + 1} of {QUIZ_DATA.questions.length}
+              </h3>
+              <div className="flex gap-2">
+                {QUIZ_DATA.questions.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      answers[QUIZ_DATA.questions[idx].id] !== undefined
+                        ? 'bg-green-500 text-white'
+                        : idx === currentQuestion
+                        ? 'bg-indigo-500 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-indigo-600 h-2 rounded-full transition-all"
@@ -136,10 +161,10 @@ function QuizPage({ user, onComplete }) {
               {currentQ.options.map((option, idx) => (
                 <label
                   key={idx}
-                  className={`flex items-center p-4 border-2 rounded-lg cursor-pointer ${
+                  className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition ${
                     answers[currentQ.id] === idx
                       ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-300'
+                      : 'border-gray-300 hover:border-indigo-300'
                   }`}
                 >
                   <input
@@ -157,9 +182,9 @@ function QuizPage({ user, onComplete }) {
 
           <div className="flex justify-between">
             <button
-              onClick={() => setCurrentQuestion(prev => Math.max(0, prev - 1))}
+              onClick={() => setCurrentQuestion((prev) => Math.max(0, prev - 1))}
               disabled={currentQuestion === 0}
-              className="px-6 py-2 bg-gray-200 rounded-lg font-medium disabled:opacity-50"
+              className="px-6 py-2 bg-gray-200 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               Previous
             </button>
@@ -167,15 +192,16 @@ function QuizPage({ user, onComplete }) {
             {currentQuestion === QUIZ_DATA.questions.length - 1 ? (
               <button
                 onClick={() => handleSubmit(false)}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium"
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition"
               >
                 Submit Quiz
               </button>
             ) : (
               <button
-                onClick={() => setCurrentQuestion(prev => prev + 1)}
+                onClick={() => setCurrentQuestion((prev) => Math.min(QUIZ_DATA.questions.length - 1, prev + 1))}
                 disabled={answers[currentQ.id] === undefined}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium disabled:opacity-50"
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Next
               </button>
