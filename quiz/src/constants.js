@@ -24,6 +24,39 @@ export const QUIZ_DATA = {
         'JavaScript Extra'
       ],
       correctAnswer: 0
+    },
+    {
+      id: 'q3',
+      question: 'Which hook is used for side effects in React?',
+      options: [
+        'useState',
+        'useEffect',
+        'useContext',
+        'useReducer'
+      ],
+      correctAnswer: 1
+    },
+    {
+      id: 'q4',
+      question: 'What is TailwindCSS?',
+      options: [
+        'A JavaScript framework',
+        'A utility-first CSS framework',
+        'A testing library',
+        'A state management tool'
+      ],
+      correctAnswer: 1
+    },
+    {
+      id: 'q5',
+      question: 'What is the virtual DOM in React?',
+      options: [
+        'A copy of the real DOM kept in memory',
+        'A database structure',
+        'A CSS animation technique',
+        'A routing mechanism'
+      ],
+      correctAnswer: 0
     }
   ]
 };
