@@ -12,6 +12,14 @@ function QuizPage({ user, onComplete }) {
 
   const timerRef = useRef(null);
 
+  useEffect(() => {
+    const released = localStorage.getItem(STORAGE_KEYS.RELEASED_SCORES) === 'true';
+    if (released) {
+      alert('Quiz is no longer available. Scores have been released.');
+      onComplete();
+    }
+  }, [onComplete]);
+
   const handleSubmit = useCallback((autoSubmit = false) => {
     if (isSubmitting) return;
     setIsSubmitting(true);

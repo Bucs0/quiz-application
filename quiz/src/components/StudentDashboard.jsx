@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, LogOut, Mail } from 'lucide-react';
+import { CheckCircle, AlertCircle, LogOut, Mail, Lock } from 'lucide-react';
 import { QUIZ_DATA, STORAGE_KEYS } from '../constants';
 
 function StudentDashboard({ user, onLogout, onStartQuiz }) {
@@ -19,6 +19,15 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
     const released = localStorage.getItem(STORAGE_KEYS.RELEASED_SCORES) === 'true';
     setScoresReleased(released);
   }, [user.email]);
+
+  const handleStartQuiz = () => {
+    const released = localStorage.getItem(STORAGE_KEYS.RELEASED_SCORES) === 'true';
+    if (released) {
+      alert('Quiz is no longer available. Scores have been released.');
+      return;
+    }
+    onStartQuiz();
+  };
 
   return (
     <div className="min-h-screen p-2 sm:p-4">
@@ -49,25 +58,39 @@ function StudentDashboard({ user, onLogout, onStartQuiz }) {
           
           {!hasCompletedQuiz ? (
             <div>
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 mb-4 sm:mb-6">
-                <p className="text-blue-800 text-sm sm:text-base">
-                  <strong>Instructions:</strong>
-                </p>
-                <ul className="list-disc list-inside mt-2 text-blue-700 space-y-1 text-xs sm:text-sm">
-                  <li>You have {QUIZ_DATA.duration / 60} minutes to complete the quiz</li>
-                  <li>Do not switch tabs or minimize the window</li>
-                  <li>After 3 violations, the quiz will auto-submit</li>
-                  <li>You can only take this quiz once</li>
-                  <li className="break-words">Results will be displayed here and sent to your email when released</li>
-                </ul>
-              </div>
-              
-              <button
-                onClick={onStartQuiz}
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition text-sm sm:text-base"
-              >
-                Start Quiz
-              </button>
+              {scoresReleased ? (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 sm:p-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Lock className="text-red-600 flex-shrink-0" size={24} />
+                    <p className="text-red-800 font-bold text-base sm:text-lg">Quiz Closed</p>
+                  </div>
+                  <p className="text-red-700 text-sm sm:text-base">
+                    This quiz is no longer available. The instructor has released scores and closed the quiz for new submissions.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 mb-4 sm:mb-6">
+                    <p className="text-blue-800 text-sm sm:text-base">
+                      <strong>Instructions:</strong>
+                    </p>
+                    <ul className="list-disc list-inside mt-2 text-blue-700 space-y-1 text-xs sm:text-sm">
+                      <li>You have {QUIZ_DATA.duration / 60} minutes to complete the quiz</li>
+                      <li>Do not switch tabs or minimize the window</li>
+                      <li>After 3 violations, the quiz will auto-submit</li>
+                      <li>You can only take this quiz once</li>
+                      <li className="break-words">Results will be displayed here and sent to your email when released</li>
+                    </ul>
+                  </div>
+                  
+                  <button
+                    onClick={handleStartQuiz}
+                    className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition text-sm sm:text-base"
+                  >
+                    Start Quiz
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div>
