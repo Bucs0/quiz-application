@@ -5,7 +5,11 @@ export const EMAILJS_CONFIG = {
   publicKey: '5cdqswWLMp1UTmPU8'
 };
 
-// Quiz Data
+export const INSTRUCTOR_CREDENTIALS = {
+  email: 'dhanprof@gmail.com',
+  password: '110978123'
+};
+
 export const QUIZ_DATA = {
   id: 'quiz_1',
   title: 'DCIT 26 - Web Development Final Quiz',
@@ -69,7 +73,6 @@ export const QUIZ_DATA = {
   ]
 };
 
-// Storage Keys
 export const STORAGE_KEYS = {
   QUIZ_RESULTS: 'quiz_results',
   CURRENT_USER: 'current_user',
