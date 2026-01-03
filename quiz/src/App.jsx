@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import StudentDashboard from './components/StudentDashboard';
 import QuizPage from './components/QuizPage';
 import InstructorDashboard from './components/InstructorDashboard';
-import { STORAGE_KEYS } from './constants';
+import { STORAGE_KEYS, initializeQuizzes } from './constants';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -32,17 +32,33 @@ function App() {
     return 'login';
   });
 
-  const handleLogin = (name, email, role) => {
-    const user = { name, email, role };
-    setCurrentUser(user);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-    setView(role === 'instructor' ? 'instructor-dashboard' : 'student-dashboard');
+  const [currentQuiz, setCurrentQuiz] = useState(null);
+
+  useEffect(() => {
+    initializeQuizzes();
+  }, []);
+
+  const handleLogin = (userData) => {
+    setCurrentUser(userData);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userData));
+    setView(userData.role === 'instructor' ? 'instructor-dashboard' : 'student-dashboard');
   };
 
   const handleLogout = () => {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     setCurrentUser(null);
+    setCurrentQuiz(null);
     setView('login');
+  };
+
+  const handleStartQuiz = (quiz) => {
+    setCurrentQuiz(quiz);
+    setView('quiz');
+  };
+
+  const handleCompleteQuiz = () => {
+    setCurrentQuiz(null);
+    setView('student-dashboard');
   };
 
   return (
@@ -52,13 +68,14 @@ function App() {
         <StudentDashboard 
           user={currentUser} 
           onLogout={handleLogout}
-          onStartQuiz={() => setView('quiz')}
+          onStartQuiz={handleStartQuiz}
         />
       )}
-      {view === 'quiz' && (
+      {view === 'quiz' && currentQuiz && (
         <QuizPage 
           user={currentUser}
-          onComplete={() => setView('student-dashboard')}
+          quiz={currentQuiz}
+          onComplete={handleCompleteQuiz}
         />
       )}
       {view === 'instructor-dashboard' && (

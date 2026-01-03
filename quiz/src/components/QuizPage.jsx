@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertCircle, Clock } from 'lucide-react';
-import { QUIZ_DATA, STORAGE_KEYS } from '../constants';
+import { STORAGE_KEYS } from '../constants';
 
-function QuizPage({ user, onComplete }) {
+function QuizPage({ user, quiz, onComplete }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(QUIZ_DATA.duration);
+  const [timeLeft, setTimeLeft] = useState(quiz.duration);
   const [violations, setViolations] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -13,12 +13,12 @@ function QuizPage({ user, onComplete }) {
   const timerRef = useRef(null);
 
   useEffect(() => {
-    const released = localStorage.getItem(STORAGE_KEYS.RELEASED_SCORES) === 'true';
+    const released = localStorage.getItem(`${STORAGE_KEYS.RELEASED_SCORES}_${quiz.id}`) === 'true';
     if (released) {
-      alert('Quiz is no longer available. Scores have been released.');
+      alert('This quiz is no longer available. Scores have been released.');
       onComplete();
     }
-  }, [onComplete]);
+  }, [quiz.id, onComplete]);
 
   const handleSubmit = useCallback((autoSubmit = false) => {
     if (isSubmitting) return;
@@ -29,17 +29,35 @@ function QuizPage({ user, onComplete }) {
     }
 
     let score = 0;
-    QUIZ_DATA.questions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswer) {
-        score++;
+    
+    quiz.questions.forEach((q) => {
+      const userAnswer = answers[q.id];
+      
+      if (q.type === 'multiple-choice' || q.type === 'true-false') {
+        if (userAnswer === q.correctAnswer) {
+          score++;
+        }
+      } else if (q.type === 'identification') {
+        if (userAnswer && userAnswer.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim()) {
+          score++;
+        }
       }
     });
 
     const result = {
-      studentName: user.name,
+      quizId: quiz.id,
+      quizCode: quiz.code,
+      quizTitle: quiz.title,
+      studentName: user.fullName || `${user.firstName} ${user.lastName}`,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      studentNumber: user.studentNumber,
       studentEmail: user.email,
+      year: user.year,
+      section: user.section,
       score,
-      totalQuestions: QUIZ_DATA.questions.length,
+      totalQuestions: quiz.questions.filter(q => q.type !== 'essay').length,
+      answers,
       violations,
       timestamp: new Date().toISOString(),
       autoSubmitted: autoSubmit
@@ -50,7 +68,7 @@ function QuizPage({ user, onComplete }) {
     localStorage.setItem(STORAGE_KEYS.QUIZ_RESULTS, JSON.stringify(results));
 
     onComplete();
-  }, [isSubmitting, answers, violations, user.name, user.email, onComplete]);
+  }, [isSubmitting, answers, violations, user, quiz, onComplete]);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -87,10 +105,10 @@ function QuizPage({ user, onComplete }) {
     }
   }, [violations, isSubmitting, handleSubmit]);
 
-  const handleAnswer = (questionId, answerIndex) => {
+  const handleAnswer = (questionId, answer) => {
     setAnswers((prev) => ({
       ...prev,
-      [questionId]: answerIndex
+      [questionId]: answer
     }));
   };
 
@@ -100,7 +118,77 @@ function QuizPage({ user, onComplete }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const currentQ = QUIZ_DATA.questions[currentQuestion];
+  const currentQ = quiz.questions[currentQuestion];
+
+  const renderQuestion = () => {
+    switch (currentQ.type) {
+      case 'multiple-choice':
+      case 'true-false':
+        return (
+          <div className="space-y-2 sm:space-y-3">
+            {currentQ.options.map((option, idx) => (
+              <label
+                key={idx}
+                className={`flex items-start p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition ${
+                  answers[currentQ.id] === idx
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-300 hover:border-indigo-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name={currentQ.id}
+                  checked={answers[currentQ.id] === idx}
+                  onChange={() => handleAnswer(currentQ.id, idx)}
+                  className="mr-3 mt-0.5 flex-shrink-0"
+                />
+                <span className="text-sm sm:text-base text-gray-800">{option}</span>
+              </label>
+            ))}
+          </div>
+        );
+
+      case 'identification':
+        return (
+          <div>
+            <input
+              type="text"
+              value={answers[currentQ.id] || ''}
+              onChange={(e) => handleAnswer(currentQ.id, e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
+              placeholder="Type your answer here..."
+            />
+          </div>
+        );
+
+      case 'essay':
+        return (
+          <div>
+            <textarea
+              value={answers[currentQ.id] || ''}
+              onChange={(e) => handleAnswer(currentQ.id, e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
+              rows="8"
+              placeholder="Write your answer here..."
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Essay answers will be graded manually by the instructor.
+            </p>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const isQuestionAnswered = () => {
+    const answer = answers[currentQ.id];
+    if (currentQ.type === 'essay' || currentQ.type === 'identification') {
+      return answer && answer.trim().length > 0;
+    }
+    return answer !== undefined;
+  };
 
   return (
     <div className="min-h-screen p-2 sm:p-4">
@@ -115,8 +203,8 @@ function QuizPage({ user, onComplete }) {
         <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6 mb-3 sm:mb-6">
           <div className="space-y-3">
             <div>
-              <h2 className="text-base sm:text-xl font-bold text-gray-800 truncate">{QUIZ_DATA.title}</h2>
-              <p className="text-xs sm:text-sm text-gray-600 truncate">Student: {user.name}</p>
+              <h2 className="text-base sm:text-xl font-bold text-gray-800 truncate">{quiz.title}</h2>
+              <p className="text-xs sm:text-sm text-gray-600">Student: {user.name} ({user.studentNumber})</p>
             </div>
             <div className="flex gap-2">
               <div className="flex items-center gap-1 sm:gap-2 bg-red-50 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg flex-1">
@@ -135,14 +223,14 @@ function QuizPage({ user, onComplete }) {
           <div className="mb-4 sm:mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
               <h3 className="text-sm sm:text-lg font-semibold text-gray-700">
-                Question {currentQuestion + 1} of {QUIZ_DATA.questions.length}
+                Question {currentQuestion + 1} of {quiz.questions.length}
               </h3>
               <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2 w-full sm:w-auto">
-                {QUIZ_DATA.questions.map((_, idx) => (
+                {quiz.questions.map((_, idx) => (
                   <div
                     key={idx}
                     className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium flex-shrink-0 ${
-                      answers[QUIZ_DATA.questions[idx].id] !== undefined
+                      answers[quiz.questions[idx].id] !== undefined
                         ? 'bg-green-500 text-white'
                         : idx === currentQuestion
                         ? 'bg-indigo-500 text-white'
@@ -158,34 +246,21 @@ function QuizPage({ user, onComplete }) {
             <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
               <div
                 className="bg-indigo-600 h-1.5 sm:h-2 rounded-full transition-all"
-                style={{ width: `${((currentQuestion + 1) / QUIZ_DATA.questions.length) * 100}%` }}
+                style={{ width: `${((currentQuestion + 1) / quiz.questions.length) * 100}%` }}
               />
             </div>
           </div>
 
           <div className="mb-6 sm:mb-8">
-            <h4 className="text-base sm:text-xl font-medium text-gray-800 mb-4 sm:mb-6 leading-relaxed">{currentQ.question}</h4>
-            <div className="space-y-2 sm:space-y-3">
-              {currentQ.options.map((option, idx) => (
-                <label
-                  key={idx}
-                  className={`flex items-start p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition ${
-                    answers[currentQ.id] === idx
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-300 hover:border-indigo-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name={currentQ.id}
-                    checked={answers[currentQ.id] === idx}
-                    onChange={() => handleAnswer(currentQ.id, idx)}
-                    className="mr-3 mt-0.5 flex-shrink-0"
-                  />
-                  <span className="text-sm sm:text-base text-gray-800">{option}</span>
-                </label>
-              ))}
+            <div className="flex items-start gap-2 mb-4">
+              <h4 className="text-base sm:text-xl font-medium text-gray-800 leading-relaxed flex-1">
+                {currentQ.question}
+              </h4>
+              <span className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
+                {currentQ.type.replace('-', ' ')}
+              </span>
             </div>
+            {renderQuestion()}
           </div>
 
           <div className="flex gap-2 sm:gap-0 sm:justify-between">
@@ -197,7 +272,7 @@ function QuizPage({ user, onComplete }) {
               Previous
             </button>
             
-            {currentQuestion === QUIZ_DATA.questions.length - 1 ? (
+            {currentQuestion === quiz.questions.length - 1 ? (
               <button
                 onClick={() => handleSubmit(false)}
                 disabled={isSubmitting}
@@ -207,8 +282,8 @@ function QuizPage({ user, onComplete }) {
               </button>
             ) : (
               <button
-                onClick={() => setCurrentQuestion((prev) => Math.min(QUIZ_DATA.questions.length - 1, prev + 1))}
-                disabled={answers[currentQ.id] === undefined}
+                onClick={() => setCurrentQuestion((prev) => Math.min(quiz.questions.length - 1, prev + 1))}
+                disabled={!isQuestionAnswered()}
                 className="flex-1 sm:flex-none px-4 sm:px-6 py-2 text-sm sm:text-base bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Next
