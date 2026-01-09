@@ -4,6 +4,7 @@ import StudentDashboard from './components/StudentDashboard';
 import QuizPage from './components/QuizPage';
 import InstructorDashboard from './components/InstructorDashboard';
 import { STORAGE_KEYS, initializeQuizzes } from './constants';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -62,29 +63,31 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {view === 'login' && <LoginPage onLogin={handleLogin} />}
-      {view === 'student-dashboard' && (
-        <StudentDashboard 
-          user={currentUser} 
-          onLogout={handleLogout}
-          onStartQuiz={handleStartQuiz}
-        />
-      )}
-      {view === 'quiz' && currentQuiz && (
-        <QuizPage 
-          user={currentUser}
-          quiz={currentQuiz}
-          onComplete={handleCompleteQuiz}
-        />
-      )}
-      {view === 'instructor-dashboard' && (
-        <InstructorDashboard 
-          user={currentUser}
-          onLogout={handleLogout}
-        />
-      )}
-    </div>
+    <ThemeProvider>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
+        {view === 'login' && <LoginPage onLogin={handleLogin} />}
+        {view === 'student-dashboard' && (
+          <StudentDashboard 
+            user={currentUser} 
+            onLogout={handleLogout}
+            onStartQuiz={handleStartQuiz}
+          />
+        )}
+        {view === 'quiz' && currentQuiz && (
+          <QuizPage 
+            user={currentUser}
+            quiz={currentQuiz}
+            onComplete={handleCompleteQuiz}
+          />
+        )}
+        {view === 'instructor-dashboard' && (
+          <InstructorDashboard 
+            user={currentUser}
+            onLogout={handleLogout}
+          />
+        )}
+      </div>
+    </ThemeProvider>
   );
 }
 

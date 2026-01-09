@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Mail, CheckCircle, Plus, Edit, Trash2, Copy, Clock, User } from 'lucide-react';
+import { LogOut, Users, Mail, CheckCircle, Plus, Edit, Trash2, Copy, Clock, User, Moon, Sun } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { STORAGE_KEYS, EMAILJS_CONFIG, getAllQuizzes, generateQuizCode, QUESTION_TYPES } from '../constants';
 import QuizBuilder from './QuizBuilder';
+import { useTheme } from '../context/ThemeContext';
 
 const getGravatarUrl = (email, name) => {
-  const seed = name || email;
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6366f1,8b5cf6,ec4899&fontSize=40`;
+  const seed = name || email || 'User';
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6366f1,8b5cf6,ec4899&fontSize=40&backgroundType=solid`;
 };
 
 function InstructorDashboard({ user, onLogout }) {
+  const { isDarkMode, toggleTheme } = useTheme();
   const [quizzes, setQuizzes] = useState([]);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [results, setResults] = useState([]);
@@ -18,6 +20,8 @@ function InstructorDashboard({ user, onLogout }) {
   const [profilePicture, setProfilePicture] = useState('');
   const [essayGrades, setEssayGrades] = useState({});
   const [editingQuiz, setEditingQuiz] = useState(null);
+  const [detailedAnswersModal, setDetailedAnswersModal] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setProfilePicture(getGravatarUrl(user.email, user.fullName));
@@ -32,7 +36,9 @@ function InstructorDashboard({ user, onLogout }) {
   };
 
   const saveEssayGrade = (resultIndex, questionId, points) => {
-    const gradeKey = `${results[resultIndex].studentNumber}_${results[resultIndex].quizId}_${questionId}`;
+    const result = results[resultIndex];
+    const gradeKey = `${result.studentNumber}_${result.quizId}_${questionId}`;
+    
     const updatedGrades = {
       ...essayGrades,
       [gradeKey]: points
@@ -40,7 +46,7 @@ function InstructorDashboard({ user, onLogout }) {
     setEssayGrades(updatedGrades);
     localStorage.setItem('essay_grades', JSON.stringify(updatedGrades));
     
-    updateStudentScore(resultIndex);
+    updateStudentScoreWithGrades(resultIndex, updatedGrades);
   };
 
   const getEssayGrade = (result, questionId) => {
@@ -48,7 +54,7 @@ function InstructorDashboard({ user, onLogout }) {
     return essayGrades[gradeKey] || 0;
   };
 
-  const updateStudentScore = (resultIndex) => {
+  const updateStudentScoreWithGrades = (resultIndex, currentGrades) => {
     const result = results[resultIndex];
     const quiz = quizzes.find(q => q.id === result.quizId);
     
@@ -59,7 +65,8 @@ function InstructorDashboard({ user, onLogout }) {
 
     quiz.questions.forEach(q => {
       if (q.type === 'essay') {
-        const earnedPoints = getEssayGrade(result, q.id);
+        const gradeKey = `${result.studentNumber}_${result.quizId}_${q.id}`;
+        const earnedPoints = currentGrades[gradeKey] || 0;
         totalScore += earnedPoints;
         totalPossible += q.maxPoints || 5;
       } else {
@@ -77,15 +84,27 @@ function InstructorDashboard({ user, onLogout }) {
       }
     });
 
-    const allResults = [...results];
-    allResults[resultIndex] = {
+    const allResults = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUIZ_RESULTS) || '[]');
+    const globalIndex = allResults.findIndex(
+      r => r.studentNumber === result.studentNumber && r.quizId === result.quizId
+    );
+    
+    if (globalIndex !== -1) {
+      allResults[globalIndex] = {
+        ...allResults[globalIndex],
+        score: totalScore,
+        totalQuestions: totalPossible
+      };
+      localStorage.setItem(STORAGE_KEYS.QUIZ_RESULTS, JSON.stringify(allResults));
+    }
+    
+    const updatedResults = [...results];
+    updatedResults[resultIndex] = {
       ...result,
       score: totalScore,
       totalQuestions: totalPossible
     };
-    
-    setResults(allResults);
-    localStorage.setItem(STORAGE_KEYS.QUIZ_RESULTS, JSON.stringify(allResults));
+    setResults(updatedResults);
   };
 
   const loadQuizzes = () => {
@@ -249,7 +268,15 @@ function InstructorDashboard({ user, onLogout }) {
       );
     }
 
+  
+    loadQuizzes();
     loadResults();
+    setRefreshKey(prev => prev + 1);
+    if (selectedQuiz && selectedQuiz.id === quizId) {
+      const temp = selectedQuiz;
+      setSelectedQuiz(null);
+      setTimeout(() => setSelectedQuiz(temp), 10);
+    }
   };
 
   const getQuizResults = (quizId) => {
@@ -261,37 +288,43 @@ function InstructorDashboard({ user, onLogout }) {
   };
 
   return (
-    <div className="min-h-screen p-2 sm:p-4">
+    <div className="min-h-screen p-2 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-100 dark:border-gray-700 transition-colors duration-300">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="flex items-center gap-4 w-full sm:w-auto">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                aria-label="Toggle theme"
+              >
+                {isDarkMode ? <Sun size={20} className="text-yellow-500" /> : <Moon size={20} className="text-indigo-600" />}
+              </button>
               <div className="relative flex-shrink-0">
-                <img
-                  src={profilePicture}
-                  alt={user.fullName}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-purple-100 shadow-lg"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextElementSibling.style.display = 'flex';
-                  }}
-                />
-                <div className="hidden w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full items-center justify-center border-4 border-purple-100 shadow-lg">
-                  <User size={28} className="text-white" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-purple-100 dark:border-purple-800 shadow-lg overflow-hidden bg-white dark:bg-gray-700">
+                  <img
+                    src={profilePicture}
+                    alt={user.fullName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="text-white" height="28" width="28"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>`;
+                    }}
+                  />
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
               </div>
 
               <div className="w-full sm:w-auto">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">{user.fullName}</h2>
-                <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                  <div className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{user.fullName}</h2>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  <div className="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
                     <Users size={12} className="mr-1" />
                     Instructor
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1">
-                    <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                    <Mail size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
                     <span className="truncate">{user.email}</span>
                   </div>
                 </div>
@@ -299,7 +332,7 @@ function InstructorDashboard({ user, onLogout }) {
             </div>
             <button
               onClick={onLogout}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition w-full sm:w-auto text-sm font-medium"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition w-full sm:w-auto text-sm font-medium"
             >
               <LogOut size={16} />
               Logout
@@ -307,14 +340,14 @@ function InstructorDashboard({ user, onLogout }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-2 mb-4 sm:mb-6 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-2 mb-4 sm:mb-6 border border-gray-100 dark:border-gray-700 transition-colors duration-300">
           <div className="flex gap-2 overflow-x-auto">
             <button
               onClick={() => setView('quizzes')}
               className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
                 view === 'quizzes' 
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' 
-                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
               }`}
             >
               My Quizzes
@@ -324,7 +357,7 @@ function InstructorDashboard({ user, onLogout }) {
               className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
                 view === 'create' 
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' 
-                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
               }`}
             >
               <Plus size={16} />
@@ -341,21 +374,21 @@ function InstructorDashboard({ user, onLogout }) {
               const isExpired = quiz.deadline && new Date(quiz.deadline) < new Date();
               
               return (
-                <div key={quiz.id} className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:border-indigo-200 transition-all">
+                <div key={quiz.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-700 transition-all">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">{quiz.title}</h3>
-                      <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600 mb-2">
-                        <span className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full">
+                      <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{quiz.title}</h3>
+                      <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-full">
                           <Clock size={14} />
                           {quiz.duration / 60} mins
                         </span>
-                        <span className="bg-purple-50 px-2 py-1 rounded-full">{quiz.questions.length} questions</span>
-                        <span className="bg-indigo-50 px-2 py-1 rounded-full capitalize">{quiz.type.replace('-', ' ')}</span>
+                        <span className="bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded-full">{quiz.questions.length} questions</span>
+                        <span className="bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-full capitalize">{quiz.type.replace('-', ' ')}</span>
                       </div>
                       {quiz.deadline && (
                         <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full inline-flex ${
-                          isExpired ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+                          isExpired ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                         }`}>
                           <Clock size={12} />
                           Deadline: {new Date(quiz.deadline).toLocaleString()}
@@ -365,21 +398,21 @@ function InstructorDashboard({ user, onLogout }) {
                     </div>
                     
                     <div className="flex flex-col gap-2 w-full sm:w-auto">
-                      <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-2 rounded-lg border border-indigo-200">
-                        <span className="text-xs font-medium text-indigo-700">Code:</span>
-                        <span className="font-mono font-bold text-indigo-900">{quiz.code}</span>
+                      <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 px-4 py-2 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                        <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">Code:</span>
+                        <span className="font-mono font-bold text-indigo-900 dark:text-indigo-100">{quiz.code}</span>
                         <button
                           onClick={() => handleCopyCode(quiz.code)}
-                          className="text-indigo-600 hover:text-indigo-800 transition"
+                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition"
                         >
                           <Copy size={16} />
                         </button>
                       </div>
                       
                       {released && (
-                        <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                          <CheckCircle size={16} className="text-green-600" />
-                          <span className="text-xs font-medium text-green-700">Scores Released</span>
+                        <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded-lg border border-green-200 dark:border-green-700">
+                          <CheckCircle size={16} className="text-green-600 dark:text-green-400" />
+                          <span className="text-xs font-medium text-green-700 dark:text-green-300">Scores Released</span>
                         </div>
                       )}
                     </div>
@@ -449,11 +482,11 @@ function InstructorDashboard({ user, onLogout }) {
             })}
 
             {quizzes.length === 0 && (
-              <div className="bg-white rounded-xl shadow-lg p-12 text-center border border-gray-100">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Plus size={32} className="text-gray-400" />
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center border border-gray-100 dark:border-gray-700">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus size={32} className="text-gray-400 dark:text-gray-500" />
                 </div>
-                <p className="text-gray-500 text-lg">No quizzes created yet</p>
+                <p className="text-gray-500 dark:text-gray-400 text-lg">No quizzes created yet</p>
                 <p className="text-gray-400 text-sm mt-2">Create your first quiz to get started!</p>
               </div>
             )}
@@ -477,12 +510,12 @@ function InstructorDashboard({ user, onLogout }) {
 
         {selectedQuiz && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-              <div className="p-4 border-b flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50">
-                <h3 className="text-xl font-bold text-gray-800">Results: {selectedQuiz.title}</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+              <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Results: {selectedQuiz.title}</h3>
                 <button
                   onClick={() => setSelectedQuiz(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-gray-700 transition"
                 >
                   ×
                 </button>
@@ -491,8 +524,8 @@ function InstructorDashboard({ user, onLogout }) {
               <div className="p-4 overflow-y-auto">
                 {getQuizResults(selectedQuiz.id).length === 0 ? (
                   <div className="text-center py-12">
-                    <Users size={48} className="mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500 text-lg">No submissions yet</p>
+                    <Users size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                    <p className="text-gray-500 dark:text-gray-400 text-lg">No submissions yet</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -503,29 +536,28 @@ function InstructorDashboard({ user, onLogout }) {
                       const studentPicture = getGravatarUrl(result.studentEmail || result.email, studentName);
                       
                       return (
-                        <div key={idx} className="border-2 border-gray-100 rounded-xl p-4 hover:border-indigo-200 transition-all">
-                          <div className="flex justify-between items-start mb-4 pb-4 border-b">
+                        <div key={idx} className="border-2 border-gray-100 dark:border-gray-700 rounded-xl p-4 hover:border-indigo-200 dark:hover:border-indigo-700 transition-all">
+                          <div className="flex justify-between items-start mb-4 pb-4 border-b dark:border-gray-700">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <img
-                                  src={studentPicture}
-                                  alt={studentName}
-                                  className="w-12 h-12 rounded-full border-2 border-indigo-200"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextElementSibling.style.display = 'flex';
-                                  }}
-                                />
-                                <div className="hidden w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full items-center justify-center text-white font-bold text-lg">
-                                  {studentInitial}
+                                <div className="w-12 h-12 rounded-full border-2 border-indigo-200 dark:border-indigo-700 overflow-hidden bg-white dark:bg-gray-700 flex-shrink-0">
+                                  <img
+                                    src={studentPicture}
+                                    alt={studentName}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">${studentInitial}</div>`;
+                                    }}
+                                  />
                                 </div>
                                 <div>
-                                  <h4 className="font-bold text-gray-800">{studentName}</h4>
-                                  <p className="text-sm text-gray-600">
+                                  <h4 className="font-bold text-gray-800 dark:text-gray-100">{studentName}</h4>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
                                     {result.studentNumber || 'N/A'} • {result.studentEmail || result.email || 'N/A'}
                                   </p>
                                   {(result.year || result.section) && (
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 dark:text-gray-500">
                                       {result.year} {result.section && `- ${result.section}`}
                                     </p>
                                   )}
@@ -533,23 +565,23 @@ function InstructorDashboard({ user, onLogout }) {
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-2xl font-bold text-indigo-600">
+                              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                                 {result.score || 0}/{result.totalQuestions || 0}
                               </div>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {result.totalQuestions ? Math.round((result.score/result.totalQuestions)*100) : 0}%
                               </p>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 mb-4">
-                            <div className="bg-orange-50 p-3 rounded-lg">
-                              <p className="text-xs text-orange-600 font-medium">Violations</p>
-                              <p className="text-xl font-bold text-orange-700">{result.violations || 0}</p>
+                            <div className="bg-orange-50 dark:bg-orange-900/30 p-3 rounded-lg">
+                              <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">Violations</p>
+                              <p className="text-xl font-bold text-orange-700 dark:text-orange-300">{result.violations || 0}</p>
                             </div>
-                            <div className="bg-blue-50 p-3 rounded-lg">
-                              <p className="text-xs text-blue-600 font-medium">Submitted</p>
-                              <p className="text-sm font-semibold text-blue-700">
+                            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg">
+                              <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Submitted</p>
+                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
                                 {result.timestamp ? new Date(result.timestamp).toLocaleString() : 'N/A'}
                               </p>
                             </div>
@@ -557,7 +589,7 @@ function InstructorDashboard({ user, onLogout }) {
 
                           {hasEssayQuestions && result.answers && (
                             <div className="mt-4">
-                              <h5 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <h5 className="font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
                                 <Edit size={16} />
                                 Essay Answers - Grade Below
                               </h5>
@@ -569,18 +601,18 @@ function InstructorDashboard({ user, onLogout }) {
                                   const currentGrade = getEssayGrade(result, question.id);
                                   
                                   return (
-                                    <div key={qIdx} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
-                                      <p className="font-medium text-gray-800 mb-2">
+                                    <div key={qIdx} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-600">
+                                      <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">
                                         Q{qIdx + 1}: {question.question}
                                       </p>
-                                      <div className="bg-white p-3 rounded border border-gray-200 mb-3">
-                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                                          {answer || <span className="text-gray-400 italic">No answer provided</span>}
+                                      <div className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-600 mb-3">
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                          {answer || <span className="text-gray-400 dark:text-gray-500 italic">No answer provided</span>}
                                         </p>
                                       </div>
                                       
-                                      <div className="flex items-center gap-3 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
-                                        <label className="text-sm font-medium text-gray-700">
+                                      <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                                           Grade:
                                         </label>
                                         <input
@@ -592,9 +624,9 @@ function InstructorDashboard({ user, onLogout }) {
                                             const points = Math.min(Math.max(0, parseInt(e.target.value) || 0), maxPoints);
                                             saveEssayGrade(idx, question.id, points);
                                           }}
-                                          className="w-20 px-3 py-2 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-center font-bold"
+                                          className="w-20 px-3 py-2 border-2 border-indigo-300 dark:border-indigo-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-indigo-500 text-center font-bold"
                                         />
-                                        <span className="text-sm font-medium text-gray-700">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                                           / {maxPoints} points
                                         </span>
                                         {currentGrade > 0 && (
@@ -607,8 +639,8 @@ function InstructorDashboard({ user, onLogout }) {
                                   );
                                 })}
                               </div>
-                              <div className="mt-3 bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
-                                <p className="text-sm text-blue-800">
+                              <div className="mt-3 bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-400 p-3 rounded">
+                                <p className="text-sm text-blue-800 dark:text-blue-200">
                                   💡 <strong>Tip:</strong> Enter points for each essay. The total score will update automatically.
                                 </p>
                               </div>
@@ -617,32 +649,8 @@ function InstructorDashboard({ user, onLogout }) {
 
                           {result.answers && (
                             <button
-                              onClick={() => {
-                                try {
-                                  const detailsText = selectedQuiz.questions.map((q, i) => {
-                                    const answer = result.answers[q.id];
-                                    let answerText = '';
-                                    
-                                    if (q.type === 'multiple-choice' || q.type === 'true-false') {
-                                      answerText = q.options[answer] || 'No answer';
-                                    } else if (q.type === 'identification' || q.type === 'essay') {
-                                      answerText = answer || 'No answer';
-                                    }
-                                    
-                                    const isCorrect = answer === q.correctAnswer || 
-                                                     (typeof q.correctAnswer === 'string' && 
-                                                      answer?.toLowerCase() === q.correctAnswer.toLowerCase());
-                                    
-                                    return `Question ${i + 1}: ${q.question}\nAnswer: ${answerText}\nCorrect: ${q.type === 'essay' ? 'Manual grading required' : (isCorrect ? '✓' : '✗')}\n`;
-                                  }).join('\n---\n\n');
-                                  
-                                  alert(`Detailed Answers for ${studentName}\n\n${detailsText}`);
-                                } catch (error) {
-                                  alert('Error displaying answers. Please check the console.');
-                                  console.error('Error:', error);
-                                }
-                              }}
-                              className="mt-3 w-full px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition text-sm font-medium"
+                              onClick={() => setDetailedAnswersModal({ result, quiz: selectedQuiz })}
+                              className="mt-3 w-full px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition text-sm font-medium"
                             >
                               View All Answers
                             </button>
@@ -652,6 +660,102 @@ function InstructorDashboard({ user, onLogout }) {
                     })}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {detailedAnswersModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border dark:border-gray-700">
+              <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                    Detailed Answers
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {detailedAnswersModal.result.studentName || `${detailedAnswersModal.result.firstName} ${detailedAnswersModal.result.lastName}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDetailedAnswersModal(null)}
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-gray-700 transition"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto">
+                <div className="space-y-6">
+                  {detailedAnswersModal.quiz.questions.map((q, i) => {
+                    const answer = detailedAnswersModal.result.answers[q.id];
+                    let answerText = '';
+                    let isCorrect = false;
+                    
+                    if (q.type === 'multiple-choice' || q.type === 'true-false') {
+                      answerText = q.options[answer] || 'No answer';
+                      isCorrect = answer === q.correctAnswer;
+                    } else if (q.type === 'identification') {
+                      answerText = answer || 'No answer';
+                      isCorrect = typeof q.correctAnswer === 'string' && answer?.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim();
+                    } else if (q.type === 'essay') {
+                      answerText = answer || 'No answer';
+                    }
+                    
+                    return (
+                      <div key={i} className="border-2 border-gray-200 dark:border-gray-600 rounded-xl p-4 bg-gray-50 dark:bg-gray-700/30">
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="font-semibold text-gray-800 dark:text-gray-100">
+                            Question {i + 1}
+                          </h4>
+                          {q.type !== 'essay' && (
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              isCorrect 
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            }`}>
+                              {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                            </span>
+                          )}
+                          {q.type === 'essay' && (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                              Essay
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-gray-700 dark:text-gray-200 mb-3 leading-relaxed">
+                          {q.question}
+                        </p>
+                        
+                        <div className="bg-white dark:bg-gray-800 border-2 border-indigo-200 dark:border-indigo-700 rounded-lg p-4">
+                          <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-2">Student's Answer:</p>
+                          <p className="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">
+                            {answerText}
+                          </p>
+                        </div>
+                        
+                        {(q.type === 'multiple-choice' || q.type === 'true-false' || q.type === 'identification') && (
+                          <div className="mt-3 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-lg p-3">
+                            <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">Correct Answer:</p>
+                            <p className="text-green-800 dark:text-green-200 font-semibold">
+                              {q.type === 'identification' ? q.correctAnswer : q.options[q.correctAnswer]}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <button
+                  onClick={() => setDetailedAnswersModal(null)}
+                  className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
